@@ -35,7 +35,7 @@
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text-primary); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
   
-  /* Small Toast Notification Pop-Up (Bottom-Right) */
+  /* Toast Notification Pop-Up */
   .toast-notice { 
     position: fixed; 
     bottom: 24px; 
@@ -130,6 +130,21 @@
   .subj-del { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 15px; padding: 0 4px; }
   .subj-del:hover { color: var(--red); }
   
+  /* Timetable & Attendance Custom Styles */
+  .slot-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; border-left: 4px solid var(--border-strong); }
+  .slot-item.free { border-left-color: var(--green); }
+  .slot-item.busy { border-left-color: var(--red); opacity: 0.8; }
+  .slot-info { font-size: 13px; }
+  .slot-info strong { font-family: var(--font-mono); color: var(--text-primary); }
+  .slot-task-badge { margin-top: 4px; font-size: 12px; color: var(--amber); display: flex; align-items: center; gap: 6px; }
+
+  .att-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 12px; }
+  .att-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .att-pct { font-family: var(--font-mono); font-weight: bold; font-size: 16px; }
+  .att-pct.good { color: var(--green); }
+  .att-pct.warn { color: var(--amber); }
+  .att-pct.danger { color: var(--red); }
+
   /* Inputs & Forms */
   input, select, textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text-primary); border-radius: 7px; padding: 9px 10px; font-size: 13px; font-family: var(--font-body); outline: none; transition: border-color 0.2s; }
   textarea { resize: vertical; min-height: 52px; }
@@ -227,7 +242,7 @@
 </head>
 <body>
 
-<!-- FLOATING TOAST NOTIFICATION POP-UP (BOTTOM-RIGHT, 1-MINUTE AUTO-DISMISS) -->
+<!-- FLOATING TOAST NOTIFICATION POP-UP -->
 <div class="toast-notice" id="toastNotice">
   <div class="toast-header">
     <div class="toast-title" id="toastTitle">🚨 Deadline Alert</div>
@@ -338,13 +353,14 @@
   <!-- Page View Navigation Tabs -->
   <div class="view-tabs">
     <button class="tab-btn active" id="tabDailyBtn">📅 Daily Schedule</button>
+    <button class="tab-btn" id="tabTimetableBtn">⏰ Daily Timetable</button>
+    <button class="tab-btn" id="tabAttendanceBtn">📝 Attendance Tracker</button>
     <button class="tab-btn" id="tabDeadlinesBtn">📌 School Deadlines</button>
     <button class="tab-btn" id="tabProgressBtn">📊 Progress Analytics</button>
   </div>
 
   <!-- VIEW 1: DAILY SCHEDULE -->
   <div id="dailyScheduleView">
-    <!-- Date Navigation -->
     <nav class="datenav">
       <button id="prevDay" aria-label="Previous Day">&#8249;</button>
       <span class="label" id="dateLabel"></span>
@@ -352,14 +368,10 @@
       <button class="today-btn" id="todayBtn">Today</button>
     </nav>
 
-    <!-- Week Strip -->
     <div class="weekstrip" id="weekStrip"></div>
 
-    <!-- Main Grid -->
     <main class="grid" id="mainGrid">
-      <!-- Left Sidebar -->
       <aside>
-        <!-- Subjects Card -->
         <section class="card">
           <h2>Subjects</h2>
           <div id="subjectList"></div>
@@ -378,13 +390,11 @@
           <button class="btn" id="addSubjectBtn">+ add subject</button>
         </section>
 
-        <!-- Progress Charts Card -->
         <section class="card">
           <h2>Today's Progress</h2>
           <div class="donuts" id="donutArea"></div>
         </section>
 
-        <!-- Stats Card -->
         <section class="card">
           <h2>Today's stats</h2>
           <div class="stat-row"><span>Tasks planned</span><span class="v" id="statPlanned">0</span></div>
@@ -395,9 +405,7 @@
         </section>
       </aside>
 
-      <!-- Right Schedule Column -->
       <section>
-        <!-- Add Task Card -->
         <div class="card">
           <h2>Add Task</h2>
           <div class="taskform">
@@ -439,7 +447,6 @@
           </div>
         </div>
 
-        <!-- Filters Bar -->
         <div class="filter-bar">
           <input type="text" id="searchFilter" placeholder="Search topics...">
           <select id="typeFilter">
@@ -457,7 +464,6 @@
           </select>
         </div>
 
-        <!-- Schedule Card -->
         <div class="card">
           <h2>Schedule</h2>
           <div class="progress-wrap">
@@ -473,7 +479,112 @@
     </main>
   </div>
 
-  <!-- VIEW 2: SCHOOL DEADLINES TRACKER -->
+  <!-- VIEW 2: DAILY TIMETABLE & FREE TIME TASK MANAGER -->
+  <div id="timetableScheduleView" style="display:none;">
+    <div class="card">
+      <h2>📅 Add Timetable Routine Slot</h2>
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; align-items: end;">
+        <div>
+          <label>Day of Week</label>
+          <select id="slotDay">
+            <option value="All">All Days (Repeat Daily)</option>
+            <option value="Monday">Monday</option>
+            <option value="Tuesday">Tuesday</option>
+            <option value="Wednesday">Wednesday</option>
+            <option value="Thursday">Thursday</option>
+            <option value="Friday">Friday</option>
+            <option value="Saturday">Saturday</option>
+            <option value="Sunday">Sunday</option>
+          </select>
+        </div>
+        <div>
+          <label>Start Time</label>
+          <input type="time" id="slotStart">
+        </div>
+        <div>
+          <label>End Time</label>
+          <input type="time" id="slotEnd">
+        </div>
+        <div>
+          <label>Slot Type</label>
+          <select id="slotType">
+            <option value="free">Free Time (Study Available)</option>
+            <option value="busy">Busy (Class / Commitment)</option>
+          </select>
+        </div>
+        <div style="grid-column: 1 / -1;">
+          <label>Title / Activity Description</label>
+          <input type="text" id="slotTitle" placeholder="e.g. Control Systems Lecture, Lunch Break, Free Study Slot">
+        </div>
+      </div>
+      <button class="btn" id="addSlotBtn" style="margin-top:12px;">+ Add Timetable Slot</button>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+      <div class="card">
+        <h2>⏱️ <span id="timetableDayHeader">Today's</span> Routine &amp; Free Slots</h2>
+        <div id="timetableSlotsList"></div>
+      </div>
+
+      <div class="card">
+        <h2>⚠️ Free-Slot Backlog Tracker</h2>
+        <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">Missed or unfinished free-time tasks land here for easy rescheduling.</p>
+        <div id="backlogList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIEW 3: ATTENDANCE TRACKER (DAILY LOG FILTERED BY TIMETABLE) -->
+  <div id="attendanceTrackerView" style="display:none;">
+    <div class="analytics-grid">
+      <div class="metric-card">
+        <div class="title">Overall Weighted Attendance</div>
+        <div class="value" id="overallAttVal">0%</div>
+      </div>
+      <div class="metric-card">
+        <div class="title">Total Credits Tracked</div>
+        <div class="value" id="totalCreditsVal">0</div>
+      </div>
+    </div>
+
+    <!-- Daily Quick Log Sheet -->
+    <div class="card">
+      <h2>⚡ Daily Post-Class Attendance Sheet</h2>
+      <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">Showing classes scheduled for today (<strong id="attTodayDayName">Today</strong>) based on your <strong>Daily Timetable</strong>.</p>
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; align-items: end;">
+        <div>
+          <label id="quickAttLabel">Today's Scheduled Subject</label>
+          <select id="quickAttSubject"></select>
+        </div>
+        <div>
+          <label>Status</label>
+          <select id="quickAttStatus">
+            <option value="present">✓ Present (Attended)</option>
+            <option value="absent">✕ Absent (Bunked / Missed)</option>
+            <option value="cancelled">➖ Class Cancelled (No Effect)</option>
+          </select>
+        </div>
+        <div>
+          <button class="btn" id="logQuickAttBtn">Log Class</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+      <div class="card">
+        <h2>📊 Subject Totals &amp; Calculations</h2>
+        <div id="attendanceSubjectsList"></div>
+      </div>
+
+      <div class="card">
+        <h2>🕒 Recent Attendance Logs</h2>
+        <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">History of logged entries. Click ✕ to remove any mis-logs.</p>
+        <div id="attendanceLogsList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIEW 4: SCHOOL DEADLINES TRACKER -->
   <div id="deadlinesTrackerView" style="display:none;">
     <div class="card">
       <h2>Add Assignment or Quiz Deadline</h2>
@@ -510,7 +621,7 @@
     </div>
   </div>
 
-  <!-- VIEW 3: PROGRESS ANALYTICS (WEEKLY & MONTHLY) -->
+  <!-- VIEW 5: PROGRESS ANALYTICS -->
   <div id="progressAnalyticsView" style="display:none;">
     <div class="analytics-grid">
       <div class="metric-card">
@@ -565,6 +676,21 @@
     <div class="modal-actions">
       <button class="btn-ghost" id="cancelPostponeBtn">Cancel</button>
       <button class="btn btn-sm" id="confirmPostponeBtn">Postpone Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Assign Free Time Task -->
+<div class="modal-overlay" id="assignFreeTaskModal">
+  <div class="modal">
+    <h3>Assign Task to Free Slot</h3>
+    <div class="field">
+      <label>Study Topic / Task Description</label>
+      <input type="text" id="freeTaskInput" placeholder="e.g. Revise Chapter 2 State Space">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="cancelFreeTaskBtn">Cancel</button>
+      <button class="btn btn-sm" id="confirmFreeTaskBtn">Assign Task</button>
     </div>
   </div>
 </div>
@@ -624,8 +750,13 @@ let usersDb = {};
 let subjects = [];
 let tasksByDate = {};
 let deadlinesList = [];
+let timetableSlots = [];
+let slotBacklog = [];
+let attendanceData = {}; 
+let attendanceHistory = []; 
 let selectedDate = toISO(new Date());
 let targetTaskId = null;
+let targetSlotId = null;
 let toastTimeoutId = null;
 
 function toISO(d){ const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0'); return y+'-'+m+'-'+day; }
@@ -634,6 +765,10 @@ function fmtLabel(iso){ const d=fromISO(iso); const label=d.toLocaleDateString('
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 function escapeHtml(str){ const d=document.createElement('div'); d.textContent=str||''; return d.innerHTML; }
 function addDaysISO(iso,n){ const d=fromISO(iso); d.setDate(d.getDate()+n); return toISO(d); }
+
+function getDayName(isoDateStr){
+  return fromISO(isoDateStr).toLocaleDateString('en-US', { weekday: 'long' });
+}
 
 /* User Data Management */
 function loadUsersDb(){
@@ -650,10 +785,22 @@ function loadUserData(){
   try { subjects = JSON.parse(localStorage.getItem(getUserKey('subjects')) || '[]'); } catch(e){ subjects=[]; }
   try { tasksByDate = JSON.parse(localStorage.getItem(getUserKey('tasks')) || '{}'); } catch(e){ tasksByDate={}; }
   try { deadlinesList = JSON.parse(localStorage.getItem(getUserKey('deadlines')) || '[]'); } catch(e){ deadlinesList=[]; }
+  try { timetableSlots = JSON.parse(localStorage.getItem(getUserKey('timetableSlots')) || '[]'); } catch(e){ timetableSlots=[]; }
+  try { slotBacklog = JSON.parse(localStorage.getItem(getUserKey('slotBacklog')) || '[]'); } catch(e){ slotBacklog=[]; }
+  try { attendanceData = JSON.parse(localStorage.getItem(getUserKey('attendanceData')) || '{}'); } catch(e){ attendanceData={}; }
+  try { attendanceHistory = JSON.parse(localStorage.getItem(getUserKey('attendanceHistory')) || '[]'); } catch(e){ attendanceHistory=[]; }
 }
 function saveSubjects(){ localStorage.setItem(getUserKey('subjects'), JSON.stringify(subjects)); }
 function saveTasks(){ localStorage.setItem(getUserKey('tasks'), JSON.stringify(tasksByDate)); }
 function saveDeadlines(){ localStorage.setItem(getUserKey('deadlines'), JSON.stringify(deadlinesList)); }
+function saveTimetable(){ 
+  localStorage.setItem(getUserKey('timetableSlots'), JSON.stringify(timetableSlots)); 
+  localStorage.setItem(getUserKey('slotBacklog'), JSON.stringify(slotBacklog)); 
+}
+function saveAttendance(){ 
+  localStorage.setItem(getUserKey('attendanceData'), JSON.stringify(attendanceData)); 
+  localStorage.setItem(getUserKey('attendanceHistory'), JSON.stringify(attendanceHistory));
+}
 
 function dayTasks(iso){ return tasksByDate[iso] || []; }
 function subjectById(id){ return subjects.find(s=>s.id===id); }
@@ -697,6 +844,38 @@ function renderSubjects(){
   const opts = subjects.length===0 ? '<option value="">Add a subject first</option>' : subjects.map(s=>'<option value="'+s.id+'">'+escapeHtml(s.name)+'</option>').join('');
   sel.innerHTML = opts;
   if(dlSel) dlSel.innerHTML = opts;
+  
+  renderAttendanceSubjectDropdown();
+}
+
+function renderAttendanceSubjectDropdown(){
+  const attSel = document.getElementById('quickAttSubject');
+  const dayNameLabel = document.getElementById('attTodayDayName');
+  if(!attSel) return;
+
+  if(subjects.length === 0){
+    attSel.innerHTML = '<option value="">Add a subject first</option>';
+    return;
+  }
+
+  const todayDay = getDayName(toISO(new Date()));
+  if(dayNameLabel) dayNameLabel.textContent = todayDay;
+
+  // Filter slots for today's specific day of week or 'All' days
+  const busySlotsToday = timetableSlots.filter(s => s.type === 'busy' && (s.day === 'All' || s.day === todayDay));
+  
+  // Find matching subjects by name
+  const scheduledSubjects = subjects.filter(sub => {
+    return busySlotsToday.some(slot => slot.title.toLowerCase().includes(sub.name.toLowerCase()));
+  });
+
+  if(scheduledSubjects.length > 0){
+    document.getElementById('quickAttLabel').textContent = `${todayDay}'s Scheduled Class`;
+    attSel.innerHTML = scheduledSubjects.map(s => '<option value="'+s.id+'">'+escapeHtml(s.name)+'</option>').join('');
+  } else {
+    document.getElementById('quickAttLabel').textContent = `All Subjects (No Routine Listed for ${todayDay})`;
+    attSel.innerHTML = subjects.map(s => '<option value="'+s.id+'">'+escapeHtml(s.name)+'</option>').join('');
+  }
 }
 
 function donutSVG(segments, size, thickness, centerLines){
@@ -842,6 +1021,254 @@ function renderTasks(){
   });
 }
 
+function renderTimetableTracker(){
+  const slotsList = document.getElementById('timetableSlotsList');
+  const backlogWrap = document.getElementById('backlogList');
+  const currentDay = getDayName(selectedDate);
+
+  document.getElementById('timetableDayHeader').textContent = `${currentDay}'s`;
+
+  // Show slots that apply to "All Days" or specifically to the currently selected day
+  const filteredSlots = timetableSlots.filter(s => s.day === 'All' || s.day === currentDay);
+
+  if(filteredSlots.length === 0){
+    slotsList.innerHTML = `<div class="empty">No routine slots logged for ${currentDay}. Add class or free slots above!</div>`;
+  } else {
+    filteredSlots.sort((a,b) => a.start.localeCompare(b.start));
+    slotsList.innerHTML = filteredSlots.map(s => {
+      return `<div class="slot-item ${s.type}">
+        <div class="slot-info">
+          <strong>${s.start} - ${s.end}</strong> | ${escapeHtml(s.title)} <span class="badge">${s.day}</span>
+          ${s.type==='free' ? `<div class="slot-task-badge">🎯 Task: ${s.task ? escapeHtml(s.task) : '<i>No task assigned (Click to add)</i>'}</div>` : ''}
+        </div>
+        <div style="display:flex; gap:6px;">
+          ${s.type === 'free' ? `
+            <button class="btn-ghost" data-assign-slot="${s.id}">Assign Task</button>
+            ${s.task ? `<button class="btn-ghost" style="color:var(--red);" data-miss-slot="${s.id}">Missed? (To Backlog)</button>` : ''}
+          ` : ''}
+          <button class="subj-del" data-del-slot="${s.id}">&times;</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  slotsList.querySelectorAll('[data-assign-slot]').forEach(btn => {
+    btn.onclick = () => {
+      targetSlotId = btn.dataset.assignSlot;
+      document.getElementById('freeTaskInput').value = '';
+      document.getElementById('assignFreeTaskModal').classList.add('active');
+    };
+  });
+
+  slotsList.querySelectorAll('[data-miss-slot]').forEach(btn => {
+    btn.onclick = () => {
+      const slot = timetableSlots.find(s => s.id === btn.dataset.missSlot);
+      if(slot && slot.task){
+        slotBacklog.push({ id: uid(), task: slot.task, date: new Date().toLocaleDateString() });
+        slot.task = '';
+        saveTimetable();
+        renderTimetableTracker();
+      }
+    };
+  });
+
+  slotsList.querySelectorAll('[data-del-slot]').forEach(btn => {
+    btn.onclick = () => {
+      timetableSlots = timetableSlots.filter(s => s.id !== btn.dataset.delSlot);
+      saveTimetable();
+      renderTimetableTracker();
+      renderAttendanceSubjectDropdown();
+    };
+  });
+
+  if(slotBacklog.length === 0){
+    backlogWrap.innerHTML = '<div class="empty">No backlog items! Great job keeping up!</div>';
+  } else {
+    backlogWrap.innerHTML = slotBacklog.map(b => {
+      return `<div class="subj-item">
+        <span style="color:var(--amber);">⚠️</span>
+        <span class="subj-name">${escapeHtml(b.task)} <small style="color:var(--text-muted);">(${b.date})</small></span>
+        <button class="btn-ghost" data-clear-backlog="${b.id}">Done</button>
+      </div>`;
+    }).join('');
+
+    backlogWrap.querySelectorAll('[data-clear-backlog]').forEach(btn => {
+      btn.onclick = () => {
+        slotBacklog = slotBacklog.filter(x => x.id !== btn.dataset.clearBacklog);
+        saveTimetable();
+        renderTimetableTracker();
+      };
+    });
+  }
+}
+
+/* Render Attendance Tracker */
+function renderAttendanceTracker(){
+  const wrap = document.getElementById('attendanceSubjectsList');
+  const historyWrap = document.getElementById('attendanceLogsList');
+
+  renderAttendanceSubjectDropdown();
+
+  if(subjects.length === 0){
+    wrap.innerHTML = '<div class="empty">No subjects added yet. Please add subjects first in the Daily Schedule tab.</div>';
+    historyWrap.innerHTML = '<div class="empty">No class logs available.</div>';
+    document.getElementById('overallAttVal').textContent = '0%';
+    document.getElementById('totalCreditsVal').textContent = '0';
+    return;
+  }
+
+  let totalWeightedAttended = 0;
+  let totalWeightedClasses = 0;
+  let totalCredits = 0;
+
+  wrap.innerHTML = subjects.map(s => {
+    const att = attendanceData[s.id] || { credits: 3, attended: 0, total: 0 };
+    const credits = parseInt(att.credits, 10) || 1;
+    const attended = parseInt(att.attended, 10) || 0;
+    const total = parseInt(att.total, 10) || 0;
+
+    const pct = total > 0 ? Math.round((attended / total) * 100) : 0;
+    
+    totalWeightedAttended += (attended * credits);
+    totalWeightedClasses += (total * credits);
+    totalCredits += credits;
+
+    let pctClass = 'good';
+    if(pct < 75) pctClass = 'danger';
+    else if(pct < 80) pctClass = 'warn';
+
+    let statusAdvice = '';
+    if(total > 0){
+      if(pct < 75){
+        const needed = Math.ceil((0.75 * total - attended) / 0.25);
+        statusAdvice = `<span style="color:var(--red);">⚠️ Below 75%! Attend next <strong>${needed}</strong> class(es) to recover.</span>`;
+      } else {
+        const canBunk = Math.floor((attended - 0.75 * total) / 0.75);
+        statusAdvice = `<span style="color:var(--green);">✓ Safe! You can bunk up to <strong>${canBunk}</strong> class(es).</span>`;
+      }
+    } else {
+      statusAdvice = '<span style="color:var(--text-muted);">No classes logged yet.</span>';
+    }
+
+    return `<div class="att-card">
+      <div class="att-header">
+        <div>
+          <strong style="font-size:15px; color:var(--text-primary);">${escapeHtml(s.name)}</strong>
+          <span class="subj-tag" style="margin-left:8px;">${s.category}</span>
+        </div>
+        <div class="att-pct ${pctClass}">${pct}%</div>
+      </div>
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:10px; align-items:end;">
+        <div>
+          <label>Course Credits</label>
+          <input type="number" min="1" max="10" value="${credits}" data-att-credit="${s.id}">
+        </div>
+        <div>
+          <label>Attended Classes</label>
+          <input type="number" min="0" value="${attended}" data-att-attended="${s.id}">
+        </div>
+        <div>
+          <label>Total Classes Held</label>
+          <input type="number" min="0" value="${total}" data-att-total="${s.id}">
+        </div>
+        <div>
+          <button class="btn btn-sm" data-att-save="${s.id}">Update</button>
+        </div>
+      </div>
+      <div style="font-size:12px; margin-top:10px;">${statusAdvice}</div>
+    </div>`;
+  }).join('');
+
+  const overallPct = totalWeightedClasses > 0 ? Math.round((totalWeightedAttended / totalWeightedClasses) * 100) : 0;
+  document.getElementById('overallAttVal').textContent = `${overallPct}%`;
+  document.getElementById('totalCreditsVal').textContent = totalCredits;
+
+  wrap.querySelectorAll('[data-att-save]').forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.dataset.attSave;
+      const creditInp = wrap.querySelector(`[data-att-credit="${id}"]`).value;
+      const attInp = wrap.querySelector(`[data-att-attended="${id}"]`).value;
+      const totalInp = wrap.querySelector(`[data-att-total="${id}"]`).value;
+
+      attendanceData[id] = {
+        credits: Math.max(1, parseInt(creditInp, 10) || 1),
+        attended: Math.max(0, parseInt(attInp, 10) || 0),
+        total: Math.max(0, parseInt(totalInp, 10) || 0)
+      };
+      saveAttendance();
+      renderAttendanceTracker();
+    };
+  });
+
+  if(attendanceHistory.length === 0){
+    historyWrap.innerHTML = '<div class="empty">No recent class logs. Use the Quick Log sheet above!</div>';
+  } else {
+    historyWrap.innerHTML = attendanceHistory.slice().reverse().map(log => {
+      const subj = subjectById(log.subjectId);
+      const subjName = subj ? subj.name : 'Subject';
+      let badgeHtml = '';
+      if(log.status === 'present') badgeHtml = '<span class="badge" style="color:var(--green); border-color:var(--green);">✓ Present</span>';
+      else if(log.status === 'absent') badgeHtml = '<span class="badge" style="color:var(--red); border-color:var(--red);">✕ Absent</span>';
+      else badgeHtml = '<span class="badge" style="color:var(--text-muted); border-color:var(--border);">➖ Cancelled</span>';
+
+      return `<div class="subj-item">
+        <span class="subj-name"><strong>${escapeHtml(subjName)}</strong> <small style="color:var(--text-muted);">(${log.date})</small></span>
+        ${badgeHtml}
+        <button class="subj-del" data-del-attlog="${log.id}">&times;</button>
+      </div>`;
+    }).join('');
+
+    historyWrap.querySelectorAll('[data-del-attlog]').forEach(btn => {
+      btn.onclick = () => {
+        const id = btn.dataset.delAttlog;
+        const entry = attendanceHistory.find(x => x.id === id);
+        if(entry){
+          const att = attendanceData[entry.subjectId];
+          if(att){
+            if(entry.status === 'present'){
+              att.attended = Math.max(0, att.attended - 1);
+              att.total = Math.max(0, att.total - 1);
+            } else if(entry.status === 'absent'){
+              att.total = Math.max(0, att.total - 1);
+            }
+          }
+          attendanceHistory = attendanceHistory.filter(x => x.id !== id);
+          saveAttendance();
+          renderAttendanceTracker();
+        }
+      };
+    });
+  }
+}
+
+function logQuickAttendance(){
+  const subjectId = document.getElementById('quickAttSubject').value;
+  const status = document.getElementById('quickAttStatus').value;
+  if(!subjectId) return alert('Please select a subject to log.');
+
+  if(!attendanceData[subjectId]){
+    attendanceData[subjectId] = { credits: 3, attended: 0, total: 0 };
+  }
+
+  const att = attendanceData[subjectId];
+  if(status === 'present'){
+    att.attended += 1;
+    att.total += 1;
+  } else if(status === 'absent'){
+    att.total += 1;
+  }
+
+  attendanceHistory.push({
+    id: uid(),
+    subjectId,
+    status,
+    date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+  });
+
+  saveAttendance();
+  renderAttendanceTracker();
+}
+
 function renderDeadlinesTracker(){
   const wrap = document.getElementById('deadlinesList');
   if(deadlinesList.length === 0){
@@ -962,7 +1389,6 @@ function checkGlobalDeadlinesNotice(){
     }
 
     if(toastTimeoutId) clearTimeout(toastTimeoutId);
-    // Auto-dismiss popup after exactly 1 minute (60,000 ms)
     toastTimeoutId = setTimeout(() => {
       toast.classList.remove('active');
     }, 60000);
@@ -1083,6 +1509,8 @@ function renderAll(){
   document.getElementById('dateLabel').textContent=fmtLabel(selectedDate);
   document.getElementById('streakBadge').textContent='streak: '+calcStreak()+'d';
   renderWeekStrip(); renderSubjects(); renderDonuts(); renderStats(); renderTasks();
+  renderTimetableTracker();
+  renderAttendanceTracker();
   renderDeadlinesTracker();
   renderProgressAnalytics();
   checkGlobalDeadlinesNotice();
@@ -1107,6 +1535,22 @@ function addTask(){
   document.getElementById('taskTopic').value='';
   document.getElementById('taskHY').checked=false; document.getElementById('hyToggleWrap').classList.remove('active');
   saveTasks(); renderAll();
+}
+
+function addSlot(){
+  const day = document.getElementById('slotDay').value;
+  const start = document.getElementById('slotStart').value;
+  const end = document.getElementById('slotEnd').value;
+  const type = document.getElementById('slotType').value;
+  const title = document.getElementById('slotTitle').value.trim();
+
+  if(!start || !end || !title) return alert('Please enter start time, end time, and a title.');
+
+  timetableSlots.push({ id: uid(), day, start, end, type, title, task: '' });
+  document.getElementById('slotTitle').value = '';
+  saveTimetable();
+  renderTimetableTracker();
+  renderAttendanceSubjectDropdown();
 }
 
 function addDeadline(){
@@ -1151,20 +1595,30 @@ function clearAuthMsgs(){
 /* Page View Tab Switching */
 function switchTab(target){
   document.getElementById('tabDailyBtn').classList.toggle('active', target==='daily');
+  document.getElementById('tabTimetableBtn').classList.toggle('active', target==='timetable');
+  document.getElementById('tabAttendanceBtn').classList.toggle('active', target==='attendance');
   document.getElementById('tabDeadlinesBtn').classList.toggle('active', target==='deadlines');
   document.getElementById('tabProgressBtn').classList.toggle('active', target==='progress');
   
   document.getElementById('dailyScheduleView').style.display = target==='daily' ? 'block' : 'none';
+  document.getElementById('timetableScheduleView').style.display = target==='timetable' ? 'block' : 'none';
+  document.getElementById('attendanceTrackerView').style.display = target==='attendance' ? 'block' : 'none';
   document.getElementById('deadlinesTrackerView').style.display = target==='deadlines' ? 'block' : 'none';
   document.getElementById('progressAnalyticsView').style.display = target==='progress' ? 'block' : 'none';
 
+  if(target === 'timetable') renderTimetableTracker();
+  if(target === 'attendance') renderAttendanceTracker();
   if(target === 'deadlines') renderDeadlinesTracker();
   if(target === 'progress') renderProgressAnalytics();
 }
 
 document.getElementById('tabDailyBtn').onclick = () => switchTab('daily');
+document.getElementById('tabTimetableBtn').onclick = () => switchTab('timetable');
+document.getElementById('tabAttendanceBtn').onclick = () => switchTab('attendance');
 document.getElementById('tabDeadlinesBtn').onclick = () => switchTab('deadlines');
 document.getElementById('tabProgressBtn').onclick = () => switchTab('progress');
+
+document.getElementById('logQuickAttBtn').onclick = logQuickAttendance;
 
 document.getElementById('toastViewBtn').onclick = () => switchTab('deadlines');
 document.getElementById('toastCloseBtn').onclick = () => {
@@ -1287,6 +1741,7 @@ document.getElementById('logoutBtn').onclick = ()=>{
 /* Core App UI Handlers */
 document.getElementById('addSubjectBtn').onclick=addSubject;
 document.getElementById('addTaskBtn').onclick=addTask;
+document.getElementById('addSlotBtn').onclick=addSlot;
 document.getElementById('addDeadlineBtn').onclick=addDeadline;
 document.getElementById('prevDay').onclick=()=>{ selectedDate=addDaysISO(selectedDate,-1); renderAll(); };
 document.getElementById('nextDay').onclick=()=>{ selectedDate=addDaysISO(selectedDate,1); renderAll(); };
@@ -1296,6 +1751,22 @@ document.getElementById('taskHY').onchange=(e)=>{ document.getElementById('hyTog
 document.getElementById('searchFilter').oninput = renderTasks;
 document.getElementById('typeFilter').onchange = renderTasks;
 document.getElementById('diffFilter').onchange = renderTasks;
+
+/* Assign Free Task Modal Handlers */
+document.getElementById('cancelFreeTaskBtn').onclick = ()=>{
+  document.getElementById('assignFreeTaskModal').classList.remove('active');
+};
+document.getElementById('confirmFreeTaskBtn').onclick = ()=>{
+  const val = document.getElementById('freeTaskInput').value.trim();
+  if(!val) return;
+  const slot = timetableSlots.find(s => s.id === targetSlotId);
+  if(slot){
+    slot.task = val;
+    saveTimetable();
+    renderTimetableTracker();
+  }
+  document.getElementById('assignFreeTaskModal').classList.remove('active');
+};
 
 /* Postpone Modal Handlers */
 document.getElementById('modalPostponeSel').onchange = (e)=>{
@@ -1336,7 +1807,7 @@ document.getElementById('closeBackupBtn').onclick = ()=>{
   document.getElementById('backupModal').classList.remove('active');
 };
 document.getElementById('exportDataBtn').onclick = ()=>{
-  const backup = { user: currentUser.email, subjects, tasksByDate, deadlinesList };
+  const backup = { user: currentUser.email, subjects, tasksByDate, deadlinesList, timetableSlots, slotBacklog, attendanceData, attendanceHistory };
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -1354,9 +1825,15 @@ document.getElementById('importFileInput').onchange = (e)=>{
         subjects = data.subjects;
         tasksByDate = data.tasksByDate;
         if(data.deadlinesList) deadlinesList = data.deadlinesList;
+        if(data.timetableSlots) timetableSlots = data.timetableSlots;
+        if(data.slotBacklog) slotBacklog = data.slotBacklog;
+        if(data.attendanceData) attendanceData = data.attendanceData;
+        if(data.attendanceHistory) attendanceHistory = data.attendanceHistory;
         saveSubjects();
         saveTasks();
         saveDeadlines();
+        saveTimetable();
+        saveAttendance();
         renderAll();
         alert('Data imported successfully!');
         document.getElementById('backupModal').classList.remove('active');
