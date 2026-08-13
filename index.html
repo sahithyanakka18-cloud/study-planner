@@ -741,12 +741,40 @@
   </div>
 </div>
 
+<!-- Firebase SDKs: provide real cross-device accounts + cloud data storage (free Spark plan) -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <script>
+/*
+  ============================================================
+  FIREBASE SETUP — REQUIRED BEFORE THIS APP WILL WORK
+  ============================================================
+  1. Go to https://console.firebase.google.com -> Add project (free).
+  2. In the project: Build -> Authentication -> Get Started -> enable "Email/Password".
+  3. In the project: Build -> Firestore Database -> Create database -> start in
+     "production mode" (rules are set below via console, see note at bottom of this file).
+  4. Project settings (gear icon) -> General -> "Your apps" -> Add app -> Web (</>) 
+     -> copy the firebaseConfig object it gives you and paste it below,
+     replacing the placeholder values.
+  ============================================================
+*/
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
 const PALETTE = ['#C9814E','#E3B341','#6FCF97','#7FA8D9','#D488B8','#8ED1C6','#C97C7C','#B0A4E8'];
 
 /* User Auth State & Data */
 let currentUser = null;
-let usersDb = {};
 let subjects = [];
 let tasksByDate = {};
 let deadlinesList = [];
@@ -770,36 +798,45 @@ function getDayName(isoDateStr){
   return fromISO(isoDateStr).toLocaleDateString('en-US', { weekday: 'long' });
 }
 
-/* User Data Management */
-function loadUsersDb(){
-  try { usersDb = JSON.parse(localStorage.getItem('planner-users-db') || '{}'); } catch(e){ usersDb = {}; }
-  try { currentUser = JSON.parse(localStorage.getItem('planner-current-user') || 'null'); } catch(e){ currentUser = null; }
+/* User Data Management — now backed by Firebase Auth + Firestore instead of localStorage,
+   so accounts and data are real and follow you to any device you log into. */
+
+function userDocRef(){
+  if(!currentUser) return null;
+  return db.collection('plannerData').doc(currentUser.uid);
 }
-function saveUsersDb(){ localStorage.setItem('planner-users-db', JSON.stringify(usersDb)); }
-function saveCurrentUser(){ localStorage.setItem('planner-current-user', JSON.stringify(currentUser)); }
 
-function getUserKey(key){ return `user-${currentUser ? currentUser.email : 'guest'}-${key}`; }
-
+// Pulls this user's saved planner data from Firestore into the in-memory globals,
+// then resolves. Called right after login/signup and on auto-login.
 function loadUserData(){
-  if(!currentUser) return;
-  try { subjects = JSON.parse(localStorage.getItem(getUserKey('subjects')) || '[]'); } catch(e){ subjects=[]; }
-  try { tasksByDate = JSON.parse(localStorage.getItem(getUserKey('tasks')) || '{}'); } catch(e){ tasksByDate={}; }
-  try { deadlinesList = JSON.parse(localStorage.getItem(getUserKey('deadlines')) || '[]'); } catch(e){ deadlinesList=[]; }
-  try { timetableSlots = JSON.parse(localStorage.getItem(getUserKey('timetableSlots')) || '[]'); } catch(e){ timetableSlots=[]; }
-  try { slotBacklog = JSON.parse(localStorage.getItem(getUserKey('slotBacklog')) || '[]'); } catch(e){ slotBacklog=[]; }
-  try { attendanceData = JSON.parse(localStorage.getItem(getUserKey('attendanceData')) || '{}'); } catch(e){ attendanceData={}; }
-  try { attendanceHistory = JSON.parse(localStorage.getItem(getUserKey('attendanceHistory')) || '[]'); } catch(e){ attendanceHistory=[]; }
+  if(!currentUser) return Promise.resolve();
+  return userDocRef().get().then(doc => {
+    const data = doc.exists ? doc.data() : {};
+    subjects = data.subjects || [];
+    tasksByDate = data.tasksByDate || {};
+    deadlinesList = data.deadlinesList || [];
+    timetableSlots = data.timetableSlots || [];
+    slotBacklog = data.slotBacklog || [];
+    attendanceData = data.attendanceData || {};
+    attendanceHistory = data.attendanceHistory || [];
+  }).catch(err => {
+    console.error('Failed to load planner data:', err);
+    subjects=[]; tasksByDate={}; deadlinesList=[]; timetableSlots=[]; slotBacklog=[]; attendanceData={}; attendanceHistory=[];
+  });
 }
-function saveSubjects(){ localStorage.setItem(getUserKey('subjects'), JSON.stringify(subjects)); }
-function saveTasks(){ localStorage.setItem(getUserKey('tasks'), JSON.stringify(tasksByDate)); }
-function saveDeadlines(){ localStorage.setItem(getUserKey('deadlines'), JSON.stringify(deadlinesList)); }
-function saveTimetable(){ 
-  localStorage.setItem(getUserKey('timetableSlots'), JSON.stringify(timetableSlots)); 
-  localStorage.setItem(getUserKey('slotBacklog'), JSON.stringify(slotBacklog)); 
+
+// Every save* function below writes (merges) straight to this user's Firestore doc.
+// Firestore's free Spark tier covers a single student's usage many times over.
+function saveSubjects(){ if(userDocRef()) userDocRef().set({ subjects }, { merge: true }).catch(e=>console.error(e)); }
+function saveTasks(){ if(userDocRef()) userDocRef().set({ tasksByDate }, { merge: true }).catch(e=>console.error(e)); }
+function saveDeadlines(){ if(userDocRef()) userDocRef().set({ deadlinesList }, { merge: true }).catch(e=>console.error(e)); }
+function saveTimetable(){
+  if(!userDocRef()) return;
+  userDocRef().set({ timetableSlots, slotBacklog }, { merge: true }).catch(e=>console.error(e));
 }
-function saveAttendance(){ 
-  localStorage.setItem(getUserKey('attendanceData'), JSON.stringify(attendanceData)); 
-  localStorage.setItem(getUserKey('attendanceHistory'), JSON.stringify(attendanceHistory));
+function saveAttendance(){
+  if(!userDocRef()) return;
+  userDocRef().set({ attendanceData, attendanceHistory }, { merge: true }).catch(e=>console.error(e));
 }
 
 function dayTasks(iso){ return tasksByDate[iso] || []; }
@@ -1646,7 +1683,14 @@ document.getElementById('toForgotBtn').onclick = ()=>{
   document.getElementById('forgotFormCard').style.display = 'block';
 };
 
-/* Auth Form Submissions */
+/* Auth Form Submissions — now real accounts via Firebase Auth, so login works
+   identically on any device/browser you sign into. */
+
+// Firestore lookup so users can still type a username instead of an email at login.
+function lookupEmailByUsername(usernameLower){
+  return db.collection('usernames').doc(usernameLower).get().then(doc => doc.exists ? doc.data().email : null);
+}
+
 document.getElementById('signupForm').onsubmit = (e)=>{
   e.preventDefault();
   clearAuthMsgs();
@@ -1663,79 +1707,107 @@ document.getElementById('signupForm').onsubmit = (e)=>{
     showAuthMsg('signupMsg', 'Passwords do not match.');
     return;
   }
-  if(usersDb[email]){
-    showAuthMsg('signupMsg', 'An account with this email already exists.');
+  if(!username){
+    showAuthMsg('signupMsg', 'Please choose a username.');
     return;
   }
 
-  const vToken = Math.random().toString(36).substring(2, 10);
-  const newUser = { username, email, password: pass, isVerified: false, verifyToken: vToken };
-  usersDb[email] = newUser;
-  saveUsersDb();
-
-  currentUser = newUser;
-  saveCurrentUser();
-
-  loadUserData();
-  document.getElementById('authOverlay').style.display = 'none';
-  renderAll();
-  alert(`Account created! A simulated verification link has been linked to ${email}.\n\nClick "Verify Email" in the top bar anytime to complete verification.`);
+  auth.createUserWithEmailAndPassword(email, pass)
+    .then(cred => {
+      const user = cred.user;
+      return user.updateProfile({ displayName: username })
+        .then(() => db.collection('usernames').doc(username.toLowerCase()).set({ email, uid: user.uid }))
+        .then(() => user.sendEmailVerification())
+        .then(() => {
+          currentUser = { uid: user.uid, username, email, isVerified: user.emailVerified };
+          return loadUserData();
+        });
+    })
+    .then(() => {
+      document.getElementById('authOverlay').style.display = 'none';
+      renderAll();
+      alert(`Account created! A real verification email has been sent to ${email} — click the link in it whenever you like.`);
+    })
+    .catch(err => {
+      showAuthMsg('signupMsg', firebaseAuthErrorMessage(err));
+    });
 };
 
 document.getElementById('loginForm').onsubmit = (e)=>{
   e.preventDefault();
   clearAuthMsgs();
-  const userInput = document.getElementById('loginUser').value.trim().toLowerCase();
+  const userInput = document.getElementById('loginUser').value.trim();
   const pass = document.getElementById('loginPass').value;
 
-  let foundUser = usersDb[userInput];
-  if(!foundUser){
-    foundUser = Object.values(usersDb).find(u => u.username.toLowerCase() === userInput);
-  }
+  const emailPromise = userInput.includes('@')
+    ? Promise.resolve(userInput.toLowerCase())
+    : lookupEmailByUsername(userInput.toLowerCase());
 
-  if(!foundUser){
-    showAuthMsg('loginMsg', 'No account found with those credentials.');
-    return;
-  }
-  if(foundUser.password !== pass){
-    showAuthMsg('loginMsg', 'Incorrect password. Please try again.');
-    return;
-  }
-
-  currentUser = foundUser;
-  saveCurrentUser();
-  loadUserData();
-  document.getElementById('authOverlay').style.display = 'none';
-  renderAll();
+  emailPromise.then(email => {
+    if(!email){
+      showAuthMsg('loginMsg', 'No account found with those credentials.');
+      return;
+    }
+    return auth.signInWithEmailAndPassword(email, pass)
+      .then(cred => {
+        const user = cred.user;
+        currentUser = { uid: user.uid, username: user.displayName || email, email: user.email, isVerified: user.emailVerified };
+        return loadUserData();
+      })
+      .then(() => {
+        document.getElementById('authOverlay').style.display = 'none';
+        renderAll();
+      })
+      .catch(err => {
+        showAuthMsg('loginMsg', firebaseAuthErrorMessage(err));
+      });
+  });
 };
 
 document.getElementById('forgotForm').onsubmit = (e)=>{
   e.preventDefault();
   clearAuthMsgs();
   const email = document.getElementById('forgotEmail').value.trim().toLowerCase();
-  if(!usersDb[email]){
-    showAuthMsg('forgotMsg', 'No account registered with this email address.');
-    return;
-  }
-  const resetToken = Math.random().toString(36).substring(2, 10);
-  showAuthMsg('forgotMsg', `Password reset link linked & sent to ${email}! (Simulated Token: ${resetToken})`, false);
+  auth.sendPasswordResetEmail(email)
+    .then(() => {
+      showAuthMsg('forgotMsg', `A real password reset link has been sent to ${email}. Check your inbox.`, false);
+    })
+    .catch(err => {
+      showAuthMsg('forgotMsg', firebaseAuthErrorMessage(err));
+    });
 };
 
+function firebaseAuthErrorMessage(err){
+  switch(err.code){
+    case 'auth/email-already-in-use': return 'An account with this email already exists.';
+    case 'auth/invalid-email': return 'That email address looks invalid.';
+    case 'auth/user-not-found': return 'No account found with those credentials.';
+    case 'auth/wrong-password': return 'Incorrect password. Please try again.';
+    case 'auth/weak-password': return 'Password is too weak — use at least 6 characters.';
+    case 'auth/too-many-requests': return 'Too many attempts. Please wait a moment and try again.';
+    default: return err.message || 'Something went wrong. Please try again.';
+  }
+}
+
 document.getElementById('verifyEmailBtn').onclick = ()=>{
-  if(!currentUser) return;
-  currentUser.isVerified = true;
-  delete currentUser.verifyToken;
-  usersDb[currentUser.email] = currentUser;
-  saveUsersDb();
-  saveCurrentUser();
-  renderAll();
-  alert(`Your email address (${currentUser.email}) has been successfully verified!`);
+  const user = auth.currentUser;
+  if(!user) return;
+  // First check if it's already verified (in case they clicked the emailed link in another tab).
+  user.reload().then(() => {
+    if(user.emailVerified){
+      currentUser.isVerified = true;
+      renderAll();
+      alert(`Your email address (${currentUser.email}) is verified!`);
+    } else {
+      user.sendEmailVerification()
+        .then(() => alert(`Verification email re-sent to ${currentUser.email}. Click the link in it, then press this button again.`))
+        .catch(err => alert(firebaseAuthErrorMessage(err)));
+    }
+  });
 };
 
 document.getElementById('logoutBtn').onclick = ()=>{
-  currentUser = null;
-  saveCurrentUser();
-  location.reload();
+  auth.signOut().then(() => location.reload());
 };
 
 /* Core App UI Handlers */
@@ -1845,17 +1917,19 @@ document.getElementById('importFileInput').onchange = (e)=>{
   reader.readAsText(file);
 };
 
-/* Initialize Application */
-(function init(){
-  loadUsersDb();
-  if(!currentUser){
+/* Initialize Application — Firebase persists the login session itself (in IndexedDB),
+   so onAuthStateChanged fires automatically on page load if you're already signed in
+   on this browser, and fires again the instant you sign in on any device. */
+auth.onAuthStateChanged((user) => {
+  if(!user){
+    currentUser = null;
     document.getElementById('authOverlay').style.display = 'flex';
-  } else {
-    document.getElementById('authOverlay').style.display = 'none';
-    loadUserData();
-    renderAll();
+    return;
   }
-})();
+  currentUser = { uid: user.uid, username: user.displayName || user.email, email: user.email, isVerified: user.emailVerified };
+  document.getElementById('authOverlay').style.display = 'none';
+  loadUserData().then(renderAll);
+});
 </script>
 </body>
 </html>
